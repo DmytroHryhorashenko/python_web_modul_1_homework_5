@@ -1,5 +1,7 @@
 import asyncio
 import websockets
+import json
+
 from exchange.client import PrivatBankClient
 from exchange.service import ExchangeService
 from exchange.logger import log_command
@@ -7,32 +9,50 @@ from exchange.logger import log_command
 client = PrivatBankClient()
 service = ExchangeService(client)
 
+
+def format_data(data):
+    return json.dumps(data, indent=2, ensure_ascii=False)
+
+
 async def handler(websocket):
-    await websocket.send("Введите: exchange 2 USD EUR")
+    print("🔥 CLIENT CONNECTED")
+
+    await websocket.send("👋 Welcome! Use: exchange <days 1-10> [USD EUR GBP]")
 
     async for message in websocket:
+        message = message.strip()
+        print("📩 RECEIVED:", message)
+
+        if not message.startswith("exchange"):
+            await websocket.send("❌ Use: exchange 2 USD EUR")
+            continue
+
+        parts = message.split()
+
         try:
-            if message.startswith("exchange"):
-                parts = message.split()
-                days = int(parts[1]) if len(parts) > 1 else 1
-                currencies = parts[2:] if len(parts) > 2 else ["USD", "EUR"]
+            days = int(parts[1]) if len(parts) > 1 else 1
+        except:
+            await websocket.send("❌ Days must be number")
+            continue
 
-                data = await service.get_last_days_rates(days, currencies)
+        currencies = parts[2:] if len(parts) > 2 else ["USD", "EUR"]
 
-                await websocket.send(str(data))
+        if days < 1 or days > 10:
+            await websocket.send("❌ Only 1–10 days allowed")
+            continue
 
-                await log_command(message)
+        data = await service.get_last_days_rates(days, currencies)
 
-            else:
-                await websocket.send("Unknown command")
+        await log_command(message)
 
-        except Exception as e:
-            await websocket.send(f"Ошибка: {e}")
+        await websocket.send(format_data(data))
+
 
 async def main():
     async with websockets.serve(handler, "localhost", 8765):
-        print("✅ WebSocket server started on ws://localhost:8765")
+        print("🚀 Server running ws://localhost:8765")
         await asyncio.Future()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

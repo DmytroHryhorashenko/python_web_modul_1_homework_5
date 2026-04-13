@@ -4,20 +4,22 @@ import websockets
 
 async def main():
     uri = "ws://localhost:8765"
-    print(f"Подключаемся к {uri}...")
+
+    print("🔌 Connecting...")
 
     async with websockets.connect(uri) as websocket:
-        print("✅ Подключено! Пиши команды (например: exchange 2 USD EUR)")
+        print("✅ Connected!")
+
+        # первое сообщение от сервера
+        welcome = await websocket.recv()
+        print(welcome)
 
         while True:
-            command = input(">>> ")
+            msg = input(">>> ")
 
-            if command.lower() in ["exit", "quit"]:
-                print("Выход...")
-                break
-
-            await websocket.send(command)
+            await websocket.send(msg)
             response = await websocket.recv()
+
             print(response)
 
 
